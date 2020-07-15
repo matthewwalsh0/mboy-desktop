@@ -1,12 +1,36 @@
 #include <iostream>
-#include "Rom.h"
+#include <mutex>
+#include <condition_variable>
+#include <sys/types.h>
+
 #include "MiniFB.h"
+#include "SDL.h"
+#include "Rom.h"
 #include "GUI.h"
 #include "Gameboy.h"
 
-const unsigned int SCALE = 3;
-const unsigned int WIDTH = 160;
-const unsigned int HEIGHT = 144;
+const u_int8_t SCALE = 4;
+const u_int8_t WIDTH = 160;
+const u_int8_t HEIGHT = 144;
+
+float* audioSamples;
+std::mutex audioMutex;
+std::condition_variable audioCondition;
+bool audioPlaying = false;
+
+static void audioCallback(void *udata, Uint8 *stream, int requestedByteLength) {
+    std::unique_lock<std::mutex> audioLock(audioMutex);
+    SDL_memset(stream, 0, requestedByteLength);
+    if(!audioPlaying) return;
+
+    u_int16_t requestedFloatLength = requestedByteLength / sizeof(float);
+    u_int16_t sampleCount = requestedFloatLength > SAMPLE_PLAY_COUNT ? SAMPLE_PLAY_COUNT : requestedFloatLength;
+    SDL_MixAudio(stream, (Uint8*) audioSamples, sampleCount * sizeof(float), SDL_MIX_MAXVOLUME);
+
+    audioPlaying = false;
+    audioLock.unlock();
+    audioCondition.notify_one();
+}
 
 class MiniFBGUI : GUI {
 
@@ -18,6 +42,18 @@ private:
 public:
     MiniFBGUI(mfb_window* window) {
         this->window = window;
+
+        SDL_AudioSpec audioFormat;
+        audioFormat.freq = SAMPLE_RATE;
+        audioFormat.format = AUDIO_F32;
+        
+        audioFormat.channels = 1;
+        audioFormat.samples = SAMPLE_PLAY_COUNT;
+        audioFormat.callback = audioCallback;
+        audioFormat.userdata = NULL;
+
+        SDL_OpenAudio(&audioFormat, NULL);
+        SDL_PauseAudio(0);
     }
 
     void displayBuffer(unsigned int* pixels) {
@@ -43,6 +79,14 @@ public:
     bool isOpen() {
         return this->open;
     }
+
+    void playAudio(float *samples, uint16 count) {
+        audioSamples = samples;
+        audioPlaying = true;
+
+        std::unique_lock<std::mutex> audioLock(audioMutex);
+        audioCondition.wait(audioLock, []{ return !audioPlaying; });
+    } 
 };
  
 int main(int argc, char *argv[]) {
