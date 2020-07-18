@@ -17,6 +17,7 @@ float* audioSamples;
 std::mutex audioMutex;
 std::condition_variable audioCondition;
 bool audioPlaying = false;
+bool buttonsDown[8] = {[0 ... 7] = false};
 
 static void audioCallback(void *udata, Uint8 *stream, int requestedByteLength) {
     std::unique_lock<std::mutex> audioLock(audioMutex);
@@ -30,6 +31,21 @@ static void audioCallback(void *udata, Uint8 *stream, int requestedByteLength) {
     audioPlaying = false;
     audioLock.unlock();
     audioCondition.notify_one();
+}
+
+static void keyboard(struct mfb_window *window, mfb_key key, mfb_key_mod mod, bool isPressed) {
+	if(key == KB_KEY_ESCAPE) {
+		mfb_close(window);
+	}
+
+    if(key == KB_KEY_Z) buttonsDown[BUTTON_A] = isPressed;
+    if(key == KB_KEY_X) buttonsDown[BUTTON_B] = isPressed;
+    if(key == KB_KEY_ENTER) buttonsDown[BUTTON_START] = isPressed;
+    if(key == KB_KEY_BACKSPACE) buttonsDown[BUTTON_SELECT] = isPressed;
+    if(key == KB_KEY_LEFT) buttonsDown[BUTTON_LEFT] = isPressed;
+    if(key == KB_KEY_UP) buttonsDown[BUTTON_UP] = isPressed;
+    if(key == KB_KEY_RIGHT) buttonsDown[BUTTON_RIGHT] = isPressed;
+    if(key == KB_KEY_DOWN) buttonsDown[BUTTON_DOWN] = isPressed;
 }
 
 class MiniFBGUI : GUI {
@@ -46,7 +62,7 @@ public:
         SDL_AudioSpec audioFormat;
         audioFormat.freq = SAMPLE_RATE;
         audioFormat.format = AUDIO_F32;
-        
+
         audioFormat.channels = 1;
         audioFormat.samples = SAMPLE_PLAY_COUNT;
         audioFormat.callback = audioCallback;
@@ -80,19 +96,24 @@ public:
         return this->open;
     }
 
+    bool isDown(uint8 button) {
+        return buttonsDown[button];
+    }
+
     void playAudio(float *samples, uint16 count) {
         audioSamples = samples;
         audioPlaying = true;
 
         std::unique_lock<std::mutex> audioLock(audioMutex);
         audioCondition.wait(audioLock, []{ return !audioPlaying; });
-    } 
+    }
 };
  
 int main(int argc, char *argv[]) {
     std::string path (argv[1]);
     Rom rom(path);
     struct mfb_window *window = mfb_open_ex(rom.name.c_str(), WIDTH * SCALE, HEIGHT * SCALE, WF_RESIZABLE);
+    mfb_set_keyboard_callback(window, keyboard);
 
     if (!window) return 0;
 
