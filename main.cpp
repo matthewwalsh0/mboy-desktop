@@ -96,10 +96,10 @@ public:
     }
 };
 
-void startEmulator(DesktopGUI* gui, std::string romPath)
+void startEmulator(DesktopGUI* gui, std::string romPath, config* config)
 {
     Rom rom(romPath);
-    Gameboy gameboy = Gameboy(rom, (GUI*) gui);
+    Gameboy gameboy = Gameboy(rom, (GUI*) gui, config);
     gameboy.run();
 }
  
@@ -124,7 +124,8 @@ int main(int argc, char *argv[]) {
 
     std::string romPath (argv[1]);
     DesktopGUI gui;
-    std::thread emulatorThread (startEmulator, &gui, romPath);
+    config emulatorConfig;
+    std::thread emulatorThread (startEmulator, &gui, romPath, &emulatorConfig);
 
     bool running = true;
     while (running)
@@ -162,6 +163,10 @@ int main(int argc, char *argv[]) {
         ImGui_ImplOpenGL2_NewFrame();
         ImGui_ImplSDL2_NewFrame(window);
         ImGui::NewFrame();
+
+        ImGui::Begin("Config", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Checkbox("Turbo", &emulatorConfig.turbo);
+        ImGui::End();
 
         ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("Game - %d", gui.fps);
