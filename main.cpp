@@ -19,6 +19,8 @@ const u_int8_t WIDTH = 160;
 const u_int8_t HEIGHT = 144;
 const u_int8_t SCALE = 2;
 const ImVec4 BACKGROUND_COLOUR = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+const u_int8_t PALETTE_SIZE = 20;
+const u_int8_t PALETTE_PADDING = 5;
 
 float* audioSamples;
 std::mutex audioMutex;
@@ -110,7 +112,7 @@ int main(int argc, char *argv[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    SDL_Window* window = SDL_CreateWindow("MBoy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 450, 335, window_flags);
+    SDL_Window* window = SDL_CreateWindow("MBoy", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_MakeCurrent(window, gl_context);
     SDL_GL_SetSwapInterval(1);
@@ -185,6 +187,61 @@ int main(int argc, char *argv[]) {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, gui.pixels);
     
             ImGui::Image((void*)(intptr_t)gameTexture, ImVec2(WIDTH * SCALE, HEIGHT * SCALE));
+            ImGui::End();
+        }
+        
+        if(emulatorConfig.backgroundColourPalettes != nullptr
+            && emulatorConfig.spriteColourPalettes != nullptr) {
+            ImGui::Begin("Colour Palettes", nullptr, ImGuiWindowFlags_NoResize);
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            
+            float originalX = ImGui::GetCursorPosX();
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + PALETTE_PADDING);
+            ImGui::Text("Background");
+
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(originalX + ((PALETTE_SIZE + PALETTE_PADDING) * 4) + PALETTE_PADDING);
+            ImGui::Text("Sprites");
+
+            const ImVec2 p = ImGui::GetCursorScreenPos();
+            float x = p.x + PALETTE_PADDING, y = p.y + PALETTE_PADDING;
+
+            for(uint8 i = 0; i < 8; i++) {
+                x = p.x + PALETTE_PADDING;
+                for(uint8 j = 0; j < 4; j++) {
+                    draw_list->AddRectFilled(ImVec2(x - 1, y - 1), ImVec2(x + PALETTE_SIZE + 1, y + PALETTE_SIZE + 1),
+                        0xFFFFFFFF);
+                    
+                    draw_list->AddRectFilled(ImVec2(x, y), ImVec2(x + PALETTE_SIZE, y + PALETTE_SIZE),
+                        emulatorConfig.backgroundColourPalettes[i].colours[j]);
+
+                    x += PALETTE_SIZE + PALETTE_PADDING;
+                }
+
+                y += PALETTE_SIZE + PALETTE_PADDING;
+            }
+
+            float columnStart = x + PALETTE_PADDING;
+            x = columnStart, y = p.y + PALETTE_PADDING;
+
+            for(uint8 i = 0; i < 8; i++) {
+                x = columnStart;
+                for(uint8 j = 0; j < 4; j++) {
+                    draw_list->AddRectFilled(ImVec2(x - 1, y - 1), ImVec2(x + PALETTE_SIZE + 1, y + PALETTE_SIZE + 1),
+                        0xFFFFFFFF);
+
+                    draw_list->AddRectFilled(ImVec2(x, y), ImVec2(x + PALETTE_SIZE, y + PALETTE_SIZE),
+                        emulatorConfig.spriteColourPalettes[i].colours[j]);
+
+                    x += PALETTE_SIZE + PALETTE_PADDING;
+                }
+                y += PALETTE_SIZE + PALETTE_PADDING;
+            }
+            
+            ImGui::SetWindowSize(ImVec2(
+                x - ImGui::GetWindowPos().x + PALETTE_PADDING,
+                y - ImGui::GetWindowPos().y + PALETTE_PADDING));
+
             ImGui::End();
         }
 
