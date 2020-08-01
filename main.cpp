@@ -98,11 +98,73 @@ public:
     }
 };
 
-void startEmulator(DesktopGUI* gui, std::string romPath, config* config)
+static void startEmulator(DesktopGUI* gui, std::string romPath, config* config)
 {
     Rom rom(romPath);
     Gameboy gameboy = Gameboy(rom, (GUI*) gui, config);
     gameboy.run();
+}
+
+static GLuint pixelsToTexture(unsigned int* data, u_int16_t width, u_int16_t height) {
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    return texture;
+}
+
+static void renderTileMap(Pixels* tileMap) {
+    GLuint tileMapTexture = pixelsToTexture(tileMap->data, tileMap->width, tileMap->height);
+    ImGui::Image((void*)(intptr_t)tileMapTexture, ImVec2(tileMap->width, tileMap->height));
+}
+
+static void renderTileSet(TileSet* tileSet, bool alternateBank, u_int8_t cacheId) {
+    static GLuint cachedTextures[4] = {0};
+    static uint8 frameCounts[4] = {0};
+
+    GLuint cachedTexture = cachedTextures[cacheId];
+    uint8 frameCount = frameCounts[cacheId];
+
+    frameCounts[cacheId] += 1;
+
+    if(frameCount >= 120 || cachedTexture == 0) {
+        Pixels pixels(8 * 16, 8 * 16);
+        uint16 x = 0;
+        uint16 y = 0;
+
+        palette tileSetPalette;
+        tileSetPalette.isColour = true;
+        tileSetPalette.colours[0] = 0xFFFFFFFF;
+        tileSetPalette.colours[1] = 0xFFd3d3d3;
+        tileSetPalette.colours[2] = 0xFFa9a9a9;
+        tileSetPalette.colours[3] = 0xFF000000;
+
+        for(uint16 i = 0; i < 256; i++) {
+            if(i % 16 == 0 && i > 0) {
+                y += 8;
+                x = 0;
+            }
+
+            for(uint8 j = 0; j < 8; j++) {
+                tileSet
+                    ->getTile(i, false, alternateBank, false)
+                    ->drawLine(&pixels, tileSetPalette, j, x, y + j, false, false);
+            }
+
+            x += 8;
+        }
+
+        GLuint newTexture = pixelsToTexture(pixels.data, pixels.width, pixels.height);
+        cachedTextures[cacheId] = newTexture;
+        cachedTexture = newTexture;
+
+        frameCounts[cacheId] = 0;
+    }
+
+    ImGui::Image((void*)(intptr_t)cachedTexture, ImVec2(8 * 16, 8 * 16));
 }
  
 int main(int argc, char *argv[]) {
@@ -177,15 +239,7 @@ int main(int argc, char *argv[]) {
 
         if(gui.pixels != nullptr) {
             ImGui::Begin("Game", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-       
-            GLuint gameTexture;
-            glGenTextures(1, &gameTexture);
-            glBindTexture(GL_TEXTURE_2D, gameTexture);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, gui.pixels);
-    
+            GLuint gameTexture = pixelsToTexture(gui.pixels, WIDTH, HEIGHT);
             ImGui::Image((void*)(intptr_t)gameTexture, ImVec2(WIDTH * SCALE, HEIGHT * SCALE));
             ImGui::End();
         }
@@ -242,6 +296,22 @@ int main(int argc, char *argv[]) {
                 x - ImGui::GetWindowPos().x + PALETTE_PADDING,
                 y - ImGui::GetWindowPos().y + PALETTE_PADDING));
 
+            ImGui::End();
+        }
+
+        if(emulatorConfig.tileMap_0 != nullptr) {
+            ImGui::Begin("Tile Maps", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            renderTileMap(emulatorConfig.tileMap_0);
+            ImGui::SameLine();
+            renderTileMap(emulatorConfig.tileMap_1);
+            ImGui::End();
+        }
+ 
+        if(emulatorConfig.tileSet_0 != nullptr) {
+            ImGui::Begin("Tile Sets", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            renderTileSet(emulatorConfig.tileSet_0, false, 0);
+            ImGui::SameLine();
+            renderTileSet(emulatorConfig.tileSet_1, false, 1);
             ImGui::End();
         }
 
