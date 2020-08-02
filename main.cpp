@@ -311,7 +311,10 @@ int main(int argc, char *argv[]) {
             ImGui::Begin("Tile Sets", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
             renderTileSet(emulatorConfig.tileSet_0, false, 0);
             ImGui::SameLine();
-            renderTileSet(emulatorConfig.tileSet_1, false, 1);
+            renderTileSet(emulatorConfig.tileSet_0, true, 1);
+            renderTileSet(emulatorConfig.tileSet_1, false, 2);
+            ImGui::SameLine();
+            renderTileSet(emulatorConfig.tileSet_1, true, 3);
             ImGui::End();
         }
 
