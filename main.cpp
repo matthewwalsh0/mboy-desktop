@@ -100,8 +100,7 @@ public:
 
 static void startEmulator(DesktopGUI* gui, std::string romPath, config* config)
 {
-    Rom rom(romPath);
-    Gameboy gameboy = Gameboy(rom, (GUI*) gui, config);
+    Gameboy gameboy = Gameboy(romPath, (GUI*) gui, config);
     gameboy.run();
 }
 
