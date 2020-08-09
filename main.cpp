@@ -229,6 +229,8 @@ int main(int argc, char *argv[]) {
 
         ImGui::Begin("Config", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Checkbox("Turbo", &emulatorConfig.turbo);
+        ImGui::Checkbox("Disable Tile Map Cache", &emulatorConfig.disableTileMapCache);
+        ImGui::Checkbox("Disable Tile Set Cache", &emulatorConfig.disableTileSetCache);
         ImGui::End();
 
         ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
