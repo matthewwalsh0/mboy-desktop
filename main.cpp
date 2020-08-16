@@ -15,12 +15,23 @@
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl2.h"
 
-const u_int8_t WIDTH = 160;
-const u_int8_t HEIGHT = 144;
-const u_int8_t SCALE = 2;
+const u_int8_t GAME_WIDTH = 160;
+const u_int8_t GAME_HEIGHT = 144;
+const u_int8_t GAME_SCALE = 2;
+const u_int16_t TILE_MAP_WIDTH = 256;
+const u_int16_t TILE_MAP_HEIGHT = TILE_MAP_WIDTH;
+const u_int16_t TILE_SET_WIDTH = 8 * 16;
+const u_int16_t TILE_SET_HEIGHT = TILE_SET_WIDTH;
+const u_int16_t TILE_SET_TILE_COUNT = 256;
+const u_int8_t TILE_SET_ROW_COUNT = 16;
+const u_int8_t TILE_WIDTH = 8;
+const u_int8_t TILE_HEIGHT = TILE_WIDTH;
+const u_int16_t TEXTURE_WIDTH = TILE_MAP_WIDTH * 2;
+const u_int16_t TEXTURE_HEIGHT = GAME_HEIGHT + TILE_MAP_HEIGHT + (TILE_SET_HEIGHT * 2); 
 const ImVec4 BACKGROUND_COLOUR = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 const u_int8_t PALETTE_SIZE = 20;
 const u_int8_t PALETTE_PADDING = 5;
+const u_int16_t TILE_SET_UPDATE_INTERVAL = 120;
 
 float* audioSamples;
 std::mutex audioMutex;
@@ -46,12 +57,14 @@ class DesktopGUI : GUI {
 private:
     bool running = true;
     bool buttonsDown[8] = {[0 ... 7] = false};
+    struct config* config;
 
 public:
-    unsigned int* pixels;
+    Pixels texturePixels;
     u_int16_t fps = 0;
 
-    DesktopGUI() {
+    DesktopGUI(struct config* config) : texturePixels(TEXTURE_WIDTH, TEXTURE_HEIGHT) {
+        this->config = config;
         SDL_AudioSpec audioFormat;
         audioFormat.freq = SAMPLE_RATE;
         audioFormat.format = AUDIO_F32;
@@ -66,7 +79,10 @@ public:
     }
 
     void displayBuffer(unsigned int* pixels) {
-        this->pixels = pixels;
+        Pixels gamePixels(GAME_WIDTH, GAME_HEIGHT, pixels);
+        texturePixels.paste(0, 0, &gamePixels);
+        texturePixels.paste(0, GAME_HEIGHT, config->tileMap_0);
+        texturePixels.paste(TILE_MAP_WIDTH, GAME_HEIGHT, config->tileMap_1);
     };
 
     void displayFPS(uint16 fps) {
@@ -104,66 +120,50 @@ static void startEmulator(DesktopGUI* gui, std::string romPath, config* config)
     gameboy.run();
 }
 
-static GLuint pixelsToTexture(unsigned int* data, u_int16_t width, u_int16_t height) {
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    return texture;
-}
+static void updateTileSet(TileSet* tileSet, bool alternateBank, Pixels* texturePixels, u_int16_t textureX, u_int16_t textureY) {
+    static uint16 frameCount = 0;
+    static uint8 tileSetCount = 0;
 
-static void renderTileMap(Pixels* tileMap) {
-    GLuint tileMapTexture = pixelsToTexture(tileMap->data, tileMap->width, tileMap->height);
-    ImGui::Image((void*)(intptr_t)tileMapTexture, ImVec2(tileMap->width, tileMap->height));
-}
+    tileSetCount += 1;
 
-static void renderTileSet(TileSet* tileSet, bool alternateBank, u_int8_t cacheId) {
-    static GLuint cachedTextures[4] = {0};
-    static uint8 frameCounts[4] = {0};
-
-    GLuint cachedTexture = cachedTextures[cacheId];
-    uint8 frameCount = frameCounts[cacheId];
-
-    frameCounts[cacheId] += 1;
-
-    if(frameCount >= 120 || cachedTexture == 0) {
-        Pixels pixels(8 * 16, 8 * 16);
-        uint16 x = 0;
-        uint16 y = 0;
-
-        palette tileSetPalette;
-        tileSetPalette.isColour = true;
-        tileSetPalette.colours[0] = 0xFFFFFFFF;
-        tileSetPalette.colours[1] = 0xFFd3d3d3;
-        tileSetPalette.colours[2] = 0xFFa9a9a9;
-        tileSetPalette.colours[3] = 0xFF000000;
-
-        for(uint16 i = 0; i < 256; i++) {
-            if(i % 16 == 0 && i > 0) {
-                y += 8;
-                x = 0;
-            }
-
-            for(uint8 j = 0; j < 8; j++) {
-                tileSet
-                    ->getTile(i, false, alternateBank, false)
-                    ->drawLine(&pixels, tileSetPalette, j, x, y + j, false, false);
-            }
-
-            x += 8;
-        }
-
-        GLuint newTexture = pixelsToTexture(pixels.data, pixels.width, pixels.height);
-        cachedTextures[cacheId] = newTexture;
-        cachedTexture = newTexture;
-
-        frameCounts[cacheId] = 0;
+    if(tileSetCount == 4) {
+        tileSetCount = 0;
+        frameCount += 1;
     }
 
-    ImGui::Image((void*)(intptr_t)cachedTexture, ImVec2(8 * 16, 8 * 16));
+    if(frameCount < TILE_SET_UPDATE_INTERVAL) return;
+
+    palette tileSetPalette;
+    tileSetPalette.isColour = true;
+    tileSetPalette.colours[0] = 0xFFFFFFFF;
+    tileSetPalette.colours[1] = 0xFFd3d3d3;
+    tileSetPalette.colours[2] = 0xFFa9a9a9;
+    tileSetPalette.colours[3] = 0xFF000000;
+
+    uint16 x = 0;
+    uint16 y = 0;
+    Pixels pixels(TILE_SET_WIDTH, TILE_SET_HEIGHT);
+
+    for(uint16 tileIndex = 0; tileIndex < TILE_SET_TILE_COUNT; tileIndex++) {
+        if(tileIndex % TILE_SET_ROW_COUNT == 0 && tileIndex > 0) {
+            y += TILE_HEIGHT;
+            x = 0;
+        }
+
+        for(uint8 tileLine = 0; tileLine < TILE_HEIGHT; tileLine++) {
+            Tile* tile = tileSet->getTile(tileIndex, false, alternateBank, false);
+            tile->drawLine(&pixels, tileSetPalette, tileLine, x, y + tileLine, false, false);
+            delete tile;
+        }
+
+        x += TILE_WIDTH;
+    }
+
+    texturePixels->paste(textureX, textureY, &pixels);
+
+    if(frameCount > TILE_SET_UPDATE_INTERVAL) {
+        frameCount = 0;
+    }
 }
  
 int main(int argc, char *argv[]) {
@@ -186,9 +186,16 @@ int main(int argc, char *argv[]) {
     ImGui_ImplOpenGL2_Init();
 
     std::string romPath (argv[1]);
-    DesktopGUI gui;
     config emulatorConfig;
+    DesktopGUI gui(&emulatorConfig);
     std::thread emulatorThread (startEmulator, &gui, romPath, &emulatorConfig);
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
     bool running = true;
     while (running)
@@ -228,9 +235,19 @@ int main(int argc, char *argv[]) {
         ImGui::NewFrame();
 
         ImGui::Begin("Config", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("Performance");
         ImGui::Checkbox("Turbo", &emulatorConfig.turbo);
         ImGui::Checkbox("Disable Tile Map Cache", &emulatorConfig.disableTileMapCache);
         ImGui::Checkbox("Disable Tile Set Cache", &emulatorConfig.disableTileSetCache);
+        ImGui::Text("Display");
+        ImGui::Checkbox("Background", &emulatorConfig.background);
+        ImGui::Checkbox("Window", &emulatorConfig.window);
+        ImGui::Checkbox("Sprites", &emulatorConfig.sprites);
+        ImGui::Text("Audio");
+        ImGui::Checkbox("Enable", &emulatorConfig.audio);
+        ImGui::Checkbox("Square 1", &emulatorConfig.square1);
+        ImGui::Checkbox("Square 2", &emulatorConfig.square2);
+        ImGui::Checkbox("Wave", &emulatorConfig.wave);
         ImGui::End();
 
         ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
@@ -238,12 +255,12 @@ int main(int argc, char *argv[]) {
         ImGui::Text("Render - %.0f", ImGui::GetIO().Framerate);
         ImGui::End();
 
-        if(gui.pixels != nullptr) {
-            ImGui::Begin("Game", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-            GLuint gameTexture = pixelsToTexture(gui.pixels, WIDTH, HEIGHT);
-            ImGui::Image((void*)(intptr_t)gameTexture, ImVec2(WIDTH * SCALE, HEIGHT * SCALE));
-            ImGui::End();
-        }
+        ImGui::Begin("Game", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, gui.texturePixels.data);
+        ImVec2 start = ImVec2(0.0f, 0.0f);
+        ImVec2 end = ImVec2(GAME_WIDTH / (TEXTURE_WIDTH * 1.0f), GAME_HEIGHT / (TEXTURE_HEIGHT * 1.0f));
+        ImGui::Image((void*)(intptr_t)texture, ImVec2(GAME_WIDTH * GAME_SCALE, GAME_HEIGHT * GAME_SCALE), start, end);
+        ImGui::End();
         
         if(emulatorConfig.backgroundColourPalettes != nullptr
             && emulatorConfig.spriteColourPalettes != nullptr) {
@@ -302,20 +319,21 @@ int main(int argc, char *argv[]) {
 
         if(emulatorConfig.tileMap_0 != nullptr) {
             ImGui::Begin("Tile Maps", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-            renderTileMap(emulatorConfig.tileMap_0);
-            ImGui::SameLine();
-            renderTileMap(emulatorConfig.tileMap_1);
+            ImVec2 start = ImVec2(0.0f, GAME_HEIGHT / (TEXTURE_HEIGHT * 1.0f));
+            ImVec2 end = ImVec2(1.0f, (GAME_HEIGHT + TILE_MAP_HEIGHT) / (TEXTURE_HEIGHT * 1.0f));
+            ImGui::Image((void*)(intptr_t)texture, ImVec2(TILE_MAP_WIDTH * 2, TILE_MAP_HEIGHT), start, end);
             ImGui::End();
         }
  
         if(emulatorConfig.tileSet_0 != nullptr) {
             ImGui::Begin("Tile Sets", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-            renderTileSet(emulatorConfig.tileSet_0, false, 0);
-            ImGui::SameLine();
-            renderTileSet(emulatorConfig.tileSet_0, true, 1);
-            renderTileSet(emulatorConfig.tileSet_1, false, 2);
-            ImGui::SameLine();
-            renderTileSet(emulatorConfig.tileSet_1, true, 3);
+            updateTileSet(emulatorConfig.tileSet_0, false, &gui.texturePixels, 0, GAME_HEIGHT + TILE_MAP_HEIGHT);
+            updateTileSet(emulatorConfig.tileSet_0, true, &gui.texturePixels, TILE_SET_WIDTH, GAME_HEIGHT + TILE_MAP_HEIGHT);
+            updateTileSet(emulatorConfig.tileSet_1, false, &gui.texturePixels, 0, GAME_HEIGHT + TILE_MAP_HEIGHT + TILE_SET_HEIGHT);
+            updateTileSet(emulatorConfig.tileSet_1, true, &gui.texturePixels, TILE_SET_WIDTH, GAME_HEIGHT + TILE_MAP_HEIGHT + TILE_SET_HEIGHT);
+            ImVec2 start = ImVec2(0.0f, (GAME_HEIGHT + TILE_MAP_HEIGHT) / (TEXTURE_HEIGHT * 1.0f));
+            ImVec2 end = ImVec2((TILE_SET_WIDTH * 2) / (TEXTURE_WIDTH * 1.0f), 1.0f);
+            ImGui::Image((void*)(intptr_t)texture, ImVec2(TILE_SET_WIDTH * 2, TILE_SET_HEIGHT * 2), start, end);
             ImGui::End();
         }
 
