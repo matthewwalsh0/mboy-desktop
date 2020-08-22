@@ -248,6 +248,7 @@ int main(int argc, char *argv[]) {
         ImGui::Checkbox("Square 1", &emulatorConfig.square1);
         ImGui::Checkbox("Square 2", &emulatorConfig.square2);
         ImGui::Checkbox("Wave", &emulatorConfig.wave);
+        ImGui::Checkbox("Noise", &emulatorConfig.noise);
         ImGui::End();
 
         ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
