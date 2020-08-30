@@ -9,8 +9,8 @@ const u_int8_t PALETTE_PADDING = 5;
 const u_int16_t TILE_SET_UPDATE_INTERVAL = 120;
 
 static void updateTileSet(TileSet* tileSet, bool alternateBank, Pixels* texturePixels, u_int16_t textureX, u_int16_t textureY) {
-    static uint16 frameCount = 0;
-    static uint8 tileSetCount = 0;
+    static u_int16_t frameCount = 0;
+    static u_int8_t tileSetCount = 0;
 
     tileSetCount += 1;
 
@@ -28,17 +28,17 @@ static void updateTileSet(TileSet* tileSet, bool alternateBank, Pixels* textureP
     tileSetPalette.colours[2] = 0xFFa9a9a9;
     tileSetPalette.colours[3] = 0xFF000000;
 
-    uint16 x = 0;
-    uint16 y = 0;
+    u_int16_t x = 0;
+    u_int16_t y = 0;
     Pixels pixels(TILE_SET_WIDTH, TILE_SET_HEIGHT);
 
-    for(uint16 tileIndex = 0; tileIndex < TILE_SET_TILE_COUNT; tileIndex++) {
+    for(u_int16_t tileIndex = 0; tileIndex < TILE_SET_TILE_COUNT; tileIndex++) {
         if(tileIndex % TILE_SET_ROW_COUNT == 0 && tileIndex > 0) {
             y += TILE_HEIGHT;
             x = 0;
         }
 
-        for(uint8 tileLine = 0; tileLine < TILE_HEIGHT; tileLine++) {
+        for(u_int8_t tileLine = 0; tileLine < TILE_HEIGHT; tileLine++) {
             Tile* tile = tileSet->getTile(tileIndex, false, alternateBank, false);
             tile->drawLine(&pixels, tileSetPalette, tileLine, x, y + tileLine, false, false);
             delete tile;
@@ -162,9 +162,9 @@ bool SDLDebugRenderer::draw(DesktopGUI* gui) {
         const ImVec2 p = ImGui::GetCursorScreenPos();
         float x = p.x + PALETTE_PADDING, y = p.y + PALETTE_PADDING;
 
-        for(uint8 i = 0; i < 8; i++) {
+        for(u_int8_t i = 0; i < 8; i++) {
             x = p.x + PALETTE_PADDING;
-            for(uint8 j = 0; j < 4; j++) {
+            for(u_int8_t j = 0; j < 4; j++) {
                 draw_list->AddRectFilled(ImVec2(x - 1, y - 1), ImVec2(x + PALETTE_SIZE + 1, y + PALETTE_SIZE + 1),
                     0xFFFFFFFF);
                 
@@ -180,9 +180,9 @@ bool SDLDebugRenderer::draw(DesktopGUI* gui) {
         float columnStart = x + PALETTE_PADDING;
         x = columnStart, y = p.y + PALETTE_PADDING;
 
-        for(uint8 i = 0; i < 8; i++) {
+        for(u_int8_t i = 0; i < 8; i++) {
             x = columnStart;
-            for(uint8 j = 0; j < 4; j++) {
+            for(u_int8_t j = 0; j < 4; j++) {
                 draw_list->AddRectFilled(ImVec2(x - 1, y - 1), ImVec2(x + PALETTE_SIZE + 1, y + PALETTE_SIZE + 1),
                     0xFFFFFFFF);
 

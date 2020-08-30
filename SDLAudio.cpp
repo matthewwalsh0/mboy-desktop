@@ -17,7 +17,7 @@ static void audioCallback(void *udata, u_int8_t *stream, int requestedByteLength
 
     u_int16_t requestedFloatLength = requestedByteLength / sizeof(float);
     u_int16_t sampleCount = requestedFloatLength > SAMPLE_PLAY_COUNT ? SAMPLE_PLAY_COUNT : requestedFloatLength;
-    SDL_MixAudio(stream, (Uint8*) audioSamples, sampleCount * sizeof(float), SDL_MIX_MAXVOLUME);
+    SDL_MixAudio(stream, (u_int8_t*) audioSamples, sampleCount * sizeof(float), SDL_MIX_MAXVOLUME);
 
     audioPlaying = false;
     audioLock.unlock();
@@ -38,7 +38,7 @@ void initAudio() {
     SDL_PauseAudio(0);
 }
 
-void processAudio(float *samples, uint16 count) {
+void processAudio(float *samples, u_int16_t count) {
     audioSamples = samples;
     audioPlaying = true;
 

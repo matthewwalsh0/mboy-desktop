@@ -30,10 +30,10 @@ public:
     struct config* config;
 
     void displayBuffer(unsigned int* pixels) override;
-    void displayFPS(uint16 fps) override;
+    void displayFPS(u_int16_t fps) override;
     bool isOpen() override;
-    bool isDown(uint8 button) override;
-    void playAudio(float *samples, uint16 count) override;
+    bool isDown(u_int8_t button) override;
+    void playAudio(float *samples, u_int16_t count) override;
 
     DesktopGUI(struct config* config);
     void setButtonDown(u_int8_t button, bool state);

@@ -14,7 +14,7 @@ void DesktopGUI::displayBuffer(unsigned int* pixels) {
     texturePixels.paste(TILE_MAP_WIDTH, GAME_HEIGHT, this->config->tileMap_1);
 };
 
-void DesktopGUI::displayFPS(uint16 fps) {
+void DesktopGUI::displayFPS(u_int16_t fps) {
     this->fps = fps;
 }
 
@@ -22,11 +22,11 @@ bool DesktopGUI::isOpen() {
     return running;
 }
 
-bool DesktopGUI::isDown(uint8 button) {
+bool DesktopGUI::isDown(u_int8_t button) {
     return buttonsDown[button];
 }
 
-void DesktopGUI::playAudio(float *samples, uint16 count) {
+void DesktopGUI::playAudio(float *samples, u_int16_t count) {
     processAudio(samples, count);
 }
 
