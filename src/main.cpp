@@ -5,7 +5,7 @@
 #include "Gameboy.h"
 #include "SDLRenderer.h"
 #include "SDLDebugRenderer.h"
-#include "deps/argparse.h"
+#include "argparse.hpp"
 
 static void startEmulator(DesktopGUI* gui, std::string romPath, config* config)
 {

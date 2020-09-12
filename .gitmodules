@@ -1,0 +1,12 @@
+[submodule "deps/mboy-core"]
+	path = deps/mboy-core
+	url = git@github.com:matthewwalsh0/mboy-core.git
+[submodule "deps/sdl"]
+	path = deps/sdl
+	url = https://github.com/spurious/SDL-mirror
+[submodule "deps/imgui"]
+	path = deps/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "deps/argparse"]
+	path = deps/argparse
+	url = https://github.com/p-ranav/argparse.git
