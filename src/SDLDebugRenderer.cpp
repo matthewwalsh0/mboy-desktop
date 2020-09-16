@@ -1,4 +1,5 @@
 #include "SDLDebugRenderer.h"
+#include "GPU.h"
 
 const u_int16_t WINDOW_WIDTH = 1280;
 const u_int16_t WINDOW_HEIGHT = 720;
@@ -54,6 +55,22 @@ static void updateTileSet(TileSet* tileSet, bool alternateBank, Pixels* textureP
     }
 }
 
+static void imgui_drawTexture(
+    u_int16_t textureId, u_int16_t textureWidth, u_int16_t textureHeight,
+    ImVec2 start, u_int16_t width, u_int16_t height) {
+
+    ImVec2 normalStart = ImVec2(start.x / (textureWidth * 1.0f), start.y / (textureHeight * 1.0f));
+    ImVec2 normalEnd = ImVec2((start.x + width) / (textureWidth * 1.0f), (start.y + height) / (textureHeight * 1.0f));
+    u_int16_t availableWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
+    u_int16_t availableHeight = ImGui::GetWindowContentRegionMax().y - ImGui::GetWindowContentRegionMin().y;
+    float aspectRatio = height / (float) width;
+    u_int16_t requiredHeight = availableWidth * aspectRatio;
+    u_int16_t renderWidth = availableHeight > requiredHeight ? availableWidth : availableHeight / aspectRatio;
+    u_int16_t renderHeight = availableHeight > requiredHeight ? renderWidth * aspectRatio : availableHeight;
+
+    ImGui::Image((void*)(intptr_t)textureId, ImVec2(renderWidth, renderHeight), normalStart, normalEnd);
+}
+
 SDLDebugRenderer::SDLDebugRenderer() {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -70,10 +87,12 @@ SDLDebugRenderer::SDLDebugRenderer() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsClassic();
     ImGui_ImplSDL2_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL2_Init();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigDockingWithShift = false;
 
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -84,6 +103,8 @@ SDLDebugRenderer::SDLDebugRenderer() {
 
 bool SDLDebugRenderer::draw(DesktopGUI* gui) {
     SDL_Event event;
+    ImGuiIO& io = ImGui::GetIO();
+
     while (SDL_PollEvent(&event))
     {
         bool isDown = false;
@@ -117,6 +138,15 @@ bool SDLDebugRenderer::draw(DesktopGUI* gui) {
     ImGui_ImplSDL2_NewFrame(window);
     ImGui::NewFrame();
 
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetWorkPos());
+    ImGui::SetNextWindowSize(viewport->GetWorkSize());
+
+    ImGui::Begin("Master", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    static ImGuiID dockspaceID = ImGui::GetID("MasterDockSpace");
+    ImGui::DockSpace(dockspaceID , ImVec2(0.0f, 0.0f));
+    ImGui::End();
+
     ImGui::Begin("Config", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("Performance");
     ImGui::Checkbox("Turbo", &gui->config->turbo);
@@ -141,9 +171,7 @@ bool SDLDebugRenderer::draw(DesktopGUI* gui) {
 
     ImGui::Begin("Game", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, gui->texturePixels.data);
-    ImVec2 start = ImVec2(0.0f, 0.0f);
-    ImVec2 end = ImVec2(GAME_WIDTH / (TEXTURE_WIDTH * 1.0f), GAME_HEIGHT / (TEXTURE_HEIGHT * 1.0f));
-    ImGui::Image((void*)(intptr_t)texture, ImVec2(GAME_WIDTH * GAME_SCALE, GAME_HEIGHT * GAME_SCALE), start, end);
+    imgui_drawTexture(texture, TEXTURE_WIDTH, TEXTURE_HEIGHT, ImVec2(0.0f, 0.0f), GAME_WIDTH, GAME_HEIGHT);
     ImGui::End();
     
     if(gui->config->backgroundColourPalettes != nullptr
@@ -203,9 +231,7 @@ bool SDLDebugRenderer::draw(DesktopGUI* gui) {
 
     if(gui->config->tileMap_0 != nullptr) {
         ImGui::Begin("Tile Maps", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        ImVec2 start = ImVec2(0.0f, GAME_HEIGHT / (TEXTURE_HEIGHT * 1.0f));
-        ImVec2 end = ImVec2(1.0f, (GAME_HEIGHT + TILE_MAP_HEIGHT) / (TEXTURE_HEIGHT * 1.0f));
-        ImGui::Image((void*)(intptr_t)texture, ImVec2(TILE_MAP_WIDTH * 2, TILE_MAP_HEIGHT), start, end);
+        imgui_drawTexture(texture, TEXTURE_WIDTH, TEXTURE_HEIGHT, ImVec2(0.0f, GAME_HEIGHT), TILE_MAP_WIDTH * 2, TILE_MAP_HEIGHT);
         ImGui::End();
     }
 
@@ -215,9 +241,8 @@ bool SDLDebugRenderer::draw(DesktopGUI* gui) {
         updateTileSet(gui->config->tileSet_0, true, &gui->texturePixels, TILE_SET_WIDTH, GAME_HEIGHT + TILE_MAP_HEIGHT);
         updateTileSet(gui->config->tileSet_1, false, &gui->texturePixels, 0, GAME_HEIGHT + TILE_MAP_HEIGHT + TILE_SET_HEIGHT);
         updateTileSet(gui->config->tileSet_1, true, &gui->texturePixels, TILE_SET_WIDTH, GAME_HEIGHT + TILE_MAP_HEIGHT + TILE_SET_HEIGHT);
-        ImVec2 start = ImVec2(0.0f, (GAME_HEIGHT + TILE_MAP_HEIGHT) / (TEXTURE_HEIGHT * 1.0f));
-        ImVec2 end = ImVec2((TILE_SET_WIDTH * 2) / (TEXTURE_WIDTH * 1.0f), 1.0f);
-        ImGui::Image((void*)(intptr_t)texture, ImVec2(TILE_SET_WIDTH * 2, TILE_SET_HEIGHT * 2), start, end);
+
+        imgui_drawTexture(texture, TEXTURE_WIDTH, TEXTURE_HEIGHT, ImVec2(0.0f, GAME_HEIGHT + TILE_MAP_HEIGHT), TILE_SET_WIDTH * 2, TILE_SET_HEIGHT * 2);
         ImGui::End();
     }
 

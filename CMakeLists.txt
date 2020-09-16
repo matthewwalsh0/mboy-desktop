@@ -21,4 +21,4 @@ file(GLOB IMGUI
 
 file(GLOB SOURCES "src/*.cpp" "src/*.h")
 add_executable(mboy_desktop ${IMGUI} ${SOURCES})
-target_link_libraries(mboy_desktop mboy_core SDL2 "-framework OpenGl")
+target_link_libraries(mboy_desktop mboy_core SDL2-static "-framework OpenGl")

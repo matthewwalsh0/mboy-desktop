@@ -13,7 +13,6 @@ class SDLDebugRenderer : Renderer {
 private:
     SDL_Window* window;
     SDL_GLContext glContext;
-    ImGuiIO io;
     GLuint texture;
 public:
     SDLDebugRenderer();
