@@ -7,7 +7,7 @@
 #include "SDLDebugRenderer.h"
 #include "argparse.hpp"
 
-static void startEmulator(DesktopGUI* gui, std::string romPath, config* config)
+static void startEmulator(DesktopGUI* gui, std::string romPath, Config* config)
 {
     Gameboy gameboy = Gameboy(romPath, (GUI*) gui, config);
     gameboy.run();
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
         (Renderer*) new SDLRenderer();
 
     std::string romPath (args.get<std::string>("rom"));
-    config emulatorConfig;
+    Config emulatorConfig;
     DesktopGUI gui(&emulatorConfig);
     std::thread emulatorThread (startEmulator, &gui, romPath, &emulatorConfig);
 

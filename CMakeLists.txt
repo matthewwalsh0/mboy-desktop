@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(mboy_desktop)
+
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DMBOY_DEBUG")
 
 # mboy-core
 add_subdirectory(deps/mboy-core)

@@ -27,7 +27,7 @@ private:
 public:
     Pixels texturePixels;
     u_int16_t fps = 0;
-    struct config* config;
+    Config* config;
 
     void displayBuffer(unsigned int* pixels) override;
     void displayFPS(u_int16_t fps) override;
@@ -35,7 +35,7 @@ public:
     bool isDown(u_int8_t button) override;
     void playAudio(float *samples, u_int16_t count) override;
 
-    DesktopGUI(struct config* config);
+    DesktopGUI(Config* config);
     void setButtonDown(u_int8_t button, bool state);
     void stop();
 };

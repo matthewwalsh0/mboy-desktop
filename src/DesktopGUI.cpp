@@ -2,7 +2,7 @@
 #include "Audio.h"
 #include "Pixels.h"
 
-DesktopGUI::DesktopGUI(struct config* config) : texturePixels(TEXTURE_WIDTH, TEXTURE_HEIGHT) {
+DesktopGUI::DesktopGUI(Config* config) : texturePixels(TEXTURE_WIDTH, TEXTURE_HEIGHT) {
     this->config = config;
     initAudio();
 }
